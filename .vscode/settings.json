@@ -1,0 +1,13 @@
+{
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.cppStandard": "c++17",
+  "cmake.configureOnOpen": true,
+  "cmake.useCMakePresets": "always",
+  "cmake.defaultConfigurePreset": "windows-msvc-debug",
+  "cmake.defaultBuildPreset": "windows-msvc-debug",
+  "cmake.defaultTestPreset": "windows-msvc-debug",
+  "files.associations": {
+    "*.hpp": "cpp",
+    "*.cpp": "cpp"
+  }
+}

@@ -1,0 +1,32 @@
+build/
+out/
+.vs/
+.cache/
+
+# CMake local/user files
+CMakeUserPresets.json
+compile_commands.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Testing/
+
+# Visual Studio/MSVC generated files
+*.user
+*.suo
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.ilk
+*.pdb
+*.obj
+*.idb
+
+# Runtime output
+backup.json
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
