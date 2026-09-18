@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Production code used by both the application and tests.
 add_library(monitoring_core
     src/WindowsActivityProvider.cpp
+    src/MetricBuffer.cpp
 )
 
 target_include_directories(monitoring_core
@@ -54,4 +55,24 @@ set_tests_properties(
     WindowsActivityProviderSmokeTest
     PROPERTIES
         LABELS "smoke"
+)
+
+add_executable(MetricBufferTests
+    tests/MetricBufferTests.cpp
+)
+
+target_link_libraries(MetricBufferTests
+    PRIVATE
+        monitoring_core
+)
+
+add_test(
+    NAME MetricBufferTests
+    COMMAND MetricBufferTests
+)
+
+set_tests_properties(
+    MetricBufferTests
+    PROPERTIES
+        LABELS "unit"
 )

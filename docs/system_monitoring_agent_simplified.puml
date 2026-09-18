@@ -34,6 +34,7 @@ namespace monitoring {
         + RestoreFront(metrics: std::vector<Metric>): void
         + GetAll(): std::vector<Metric>
         + NotifyAll(): void
+        + Size(): std::size_t
         - TrimToCapacity(): void
     }
 
