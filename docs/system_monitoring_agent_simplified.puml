@@ -1,0 +1,117 @@
+@startuml
+title System Monitoring Agent — Simplified Class Diagram
+
+top to bottom direction
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+namespace monitoring {
+
+    class Metric <<struct>> {
+        + mTime: std::chrono::system_clock::time_point
+        + mProcessName: std::string
+        + mWindowTitle: std::string
+        + mUserActive: bool
+    }
+
+    class WindowsActivityProvider {
+        + GetProcessName() const: std::string
+        + GetWindowTitle() const: std::string
+        + WasUserActive(interval: std::chrono::seconds) const: bool
+    }
+
+    class MetricBuffer {
+        {static} - kMaxBufferSize: std::size_t = 100
+        - mQueue: std::deque<Metric>
+        - mMutex: std::mutex
+        - mChanged: std::condition_variable
+        --
+        + Push(metric: Metric): void
+        + WaitForData(threshold: std::size_t, timeout: std::chrono::seconds): bool
+        + TakeBatch(maxCount: std::size_t): std::vector<Metric>
+        + RestoreFront(metrics: std::vector<Metric>): void
+        + GetAll(): std::vector<Metric>
+        + NotifyAll(): void
+        - TrimToCapacity(): void
+    }
+
+    class HttpClient {
+        + PostJson(
+            url: const std::string&,
+            body: const std::string&,
+            timeout: std::chrono::seconds
+          ): bool
+    }
+
+    class Agent {
+        - mActivityProvider: WindowsActivityProvider
+        - mBuffer: MetricBuffer
+        - mHttpClient: HttpClient
+        - mCollectorThread: std::thread
+        - mSenderThread: std::thread
+        - mStopRequested: std::atomic_bool
+        - mAgentId: std::string
+        - mEndpoint: std::string
+        --
+        + Start(): void
+        + RequestStop(): void
+        + Stop(): void
+        --
+        - CollectorLoop(): void
+        - SenderLoop(): void
+        - CollectMetric(): Metric
+        - CreateJson(metrics: const std::vector<Metric>&): std::string
+        - SaveBackup(metrics: const std::vector<Metric>&): void
+    }
+}
+
+Agent *-- WindowsActivityProvider
+Agent *-- MetricBuffer
+Agent *-- HttpClient
+
+MetricBuffer "1" o-- "0..100" Metric
+
+note right of WindowsActivityProvider
+Работа с Win32 API:
+- активное окно
+- имя процесса
+- заголовок окна
+- последняя активность пользователя
+end note
+
+note right of MetricBuffer
+Потокобезопасный буфер.
+При превышении 100 записей
+удаляется самая старая.
+end note
+
+note right of Agent
+Два рабочих потока:
+
+CollectorLoop()
+- каждые 5 секунд
+- получает данные
+- кладёт Metric в буфер
+
+SenderLoop()
+- отправка при 10 записях
+  или каждые 30 секунд
+- формирует JSON
+- вызывает HttpClient
+- при ошибке возвращает
+  записи в буфер
+end note
+
+note bottom of Agent
+main.cpp:
+- создаёт Agent
+- запускает Agent::Start()
+- обрабатывает Ctrl+C / сигнал остановки
+- вызывает Agent::RequestStop()
+- вызывает Agent::Stop()
+- оставшиеся данные сохраняются в backup.json
+end note
+
+@enduml

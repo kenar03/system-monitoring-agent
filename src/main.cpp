@@ -1,78 +1,31 @@
-#include <atomic>
-#include <chrono>
-#include <csignal>
-#include <iostream>
-#include <string_view>
-#include <thread>
+#include "WindowsActivityProvider.hpp" // for monitoring::WindowsActivityProvider
 
-#include "system_monitoring_agent/version.hpp"
+#include <chrono>   // for std::chrono::seconds
+#include <iostream> // for std::cout
+#include <thread>   // for std::this_thread::sleep_for
+#include <Windows.h> // for SetConsoleOutputCP, CP_UTF8
 
-namespace
+int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
 
-std::atomic_bool stop_requested{false};
+    monitoring::WindowsActivityProvider provider;
 
-void handle_signal(int)
-{
-    stop_requested.store(true);
-}
+    std::cout << "Switch between windows now.\n";
 
-void print_help(std::string_view executable_name)
-{
-    std::cout << "Usage: " << executable_name << " [--help] [--version]\n"
-              << "\n"
-              << "Runs the system monitoring agent scaffold until Ctrl+C.\n";
-}
-
-void print_version()
-{
-    std::cout << SYSTEM_MONITORING_AGENT_NAME << " " << SYSTEM_MONITORING_AGENT_VERSION << "\n";
-}
-
-} // namespace
-
-int main(int argc, char* argv[])
-{
-    const std::string_view executable_name = argc > 0 ? argv[0] : "system_monitoring_agent";
-
-    if (argc > 2)
+    for (int i = 0; i < 10; ++i)
     {
-        std::cerr << "Too many arguments.\n";
-        print_help(executable_name);
-        return 2;
+        std::this_thread::sleep_for(
+            std::chrono::seconds{1});
+
+        std::cout
+            << "Process: " << provider.GetProcessName()
+            << " | Title: " << provider.GetWindowTitle()
+            << '\n';
     }
 
-    if (argc == 2)
-    {
-        const std::string_view argument = argv[1];
-        if (argument == "--help" || argument == "-h")
-        {
-            print_help(executable_name);
-            return 0;
-        }
-        if (argument == "--version" || argument == "-v")
-        {
-            print_version();
-            return 0;
-        }
+    std::cout << "\nPress Enter to exit...";
+    std::cin.get();
 
-        std::cerr << "Unknown argument: " << argument << "\n";
-        print_help(executable_name);
-        return 2;
-    }
-
-    std::signal(SIGINT, handle_signal);
-    std::signal(SIGTERM, handle_signal);
-
-    std::cout << SYSTEM_MONITORING_AGENT_NAME << " " << SYSTEM_MONITORING_AGENT_VERSION
-              << " started. Press Ctrl+C to stop.\n";
-
-    using namespace std::chrono_literals;
-    while (!stop_requested.load())
-    {
-        std::this_thread::sleep_for(250ms);
-    }
-
-    std::cout << "Shutdown requested. Exiting cleanly.\n";
     return 0;
 }

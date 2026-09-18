@@ -1,60 +1,57 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.20)
 
-project(
-    system_monitoring_agent
-    VERSION 0.1.0
-    DESCRIPTION "Prototype system monitoring agent"
-    LANGUAGES CXX
-)
+project(SystemMonitoringAgent LANGUAGES CXX)
 
-option(AGENT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/system_monitoring_agent/version.hpp"
-    @ONLY
+# Production code used by both the application and tests.
+add_library(monitoring_core
+    src/WindowsActivityProvider.cpp
 )
 
-add_executable(system_monitoring_agent
+target_include_directories(monitoring_core
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+if(WIN32)
+    target_link_libraries(monitoring_core
+        PUBLIC
+            user32
+    )
+endif()
+
+# Main application.
+add_executable(SystemMonitoringAgent
     src/main.cpp
 )
 
-target_include_directories(system_monitoring_agent
+target_link_libraries(SystemMonitoringAgent
     PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_BINARY_DIR}/generated"
+        monitoring_core
 )
 
-target_compile_features(system_monitoring_agent PRIVATE cxx_std_17)
+# Tests.
+enable_testing()
 
-if(MSVC)
-    target_compile_options(system_monitoring_agent PRIVATE /W4 /permissive- /utf-8)
-    if(AGENT_WARNINGS_AS_ERRORS)
-        target_compile_options(system_monitoring_agent PRIVATE /WX)
-    endif()
-else()
-    target_compile_options(system_monitoring_agent PRIVATE -Wall -Wextra -Wpedantic)
-    if(AGENT_WARNINGS_AS_ERRORS)
-        target_compile_options(system_monitoring_agent PRIVATE -Werror)
-    endif()
-endif()
-
-set_property(TARGET system_monitoring_agent PROPERTY VS_DEBUGGER_WORKING_DIRECTORY
-    "${CMAKE_CURRENT_SOURCE_DIR}"
+add_executable(WindowsActivityProviderSmokeTest
+    tests/WindowsActivityProviderSmokeTest.cpp
 )
 
-include(CTest)
-if(BUILD_TESTING)
-    add_test(
-        NAME agent_prints_version
-        COMMAND system_monitoring_agent --version
-    )
-endif()
+target_link_libraries(WindowsActivityProviderSmokeTest
+    PRIVATE
+        monitoring_core
+)
+
+add_test(
+    NAME WindowsActivityProviderSmokeTest
+    COMMAND WindowsActivityProviderSmokeTest
+)
+
+set_tests_properties(
+    WindowsActivityProviderSmokeTest
+    PROPERTIES
+        LABELS "smoke"
+)
