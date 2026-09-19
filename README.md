@@ -1,51 +1,149 @@
-# system-monitoring-agent
+# System Monitoring Agent
 
-Prototype C++ console agent for collecting user activity metrics and sending
-them to a demo HTTP endpoint.
+Проект написан на C++. Программа запускается как консольный агент и собирает метрики активности пользователя.
 
-## Requirements
+Агент:
 
-- CMake 3.24 or newer
-- Visual Studio 2022 with the C++ desktop workload, or another C++17 compiler
-- VS Code with the recommended C/C++ and CMake Tools extensions
+- раз в 5 секунд проверяет активное окно;
+- сохраняет имя процесса и заголовок окна;
+- проверяет, была ли активность пользователя за последние 5 секунд;
+- складывает данные во внутренний потокобезопасный буфер;
+- отправляет накопленные данные каждые 30 секунд или при накоплении 10 записей;
+- при ошибке отправки не удаляет данные и повторяет попытку позже;
+- хранит в памяти не более 100 записей;
+- при корректной остановке сохраняет оставшиеся неотправленные данные в `backup.json`.
 
-## Build
+## Архитектура
 
-Configure and build the default Debug preset:
+Диаграмма классов находится здесь:
+
+[docs/architecture.puml](docs/architecture.puml)
+
+Её можно открыть в VS Code через расширение PlantUML или через любой другой PlantUML viewer.
+
+Основные компоненты проекта:
+
+- `Agent` — главный класс агента. Запускает два потока: сбор метрик и отправку данных.
+- `WindowsActivityProvider` — получает данные через Win32 API: активное окно, имя процесса, заголовок окна и факт активности пользователя.
+- `MetricBuffer` — потокобезопасный буфер. В нём хранится максимум 100 записей.
+- `JsonSerializer` — преобразует метрики в JSON нужного формата.
+- `HttpClient` — отправляет JSON методом POST.
+
+## Требования
+
+Для сборки проекта нужны:
+
+- Windows;
+- CMake 3.20 или новее;
+- компилятор с поддержкой C++20, например MSVC из Visual Studio Build Tools 2022;
+- интернет при первом configure, потому что CMake скачивает `nlohmann/json` и `cpp-httplib`.
+
+Проект рассчитан на Windows, так как сбор информации об активном окне реализован через Win32 API.
+
+## Сборка
 
 ```powershell
-cmake --preset windows-msvc-debug
-cmake --build --preset windows-msvc-debug
+cmake -S . -B build
+cmake --build build --config Debug
 ```
 
-The executable is produced under:
+После сборки исполняемый файл будет находиться здесь:
 
 ```text
-build/msvc-debug/bin/Debug/system_monitoring_agent.exe
+build/Debug/SystemMonitoringAgent.exe
 ```
 
-## Run
+Также можно использовать скрипт:
+
+```powershell
+.\scripts\run.cmd --version
+```
+
+Скрипт выполняет configure, build и запускает программу.
+
+## Запуск
+
+Обычный запуск:
 
 ```powershell
 .\scripts\run.cmd
 ```
 
-The current application is a scaffold. It stays alive like a background agent
-until Ctrl+C and supports:
+По умолчанию агент отправляет данные на:
 
-```powershell
-.\scripts\run.cmd --version
-.\build\msvc-debug\bin\Debug\system_monitoring_agent.exe --help
-.\build\msvc-debug\bin\Debug\system_monitoring_agent.exe --version
+```text
+http://localhost:8080
 ```
 
-## Debug
-
-Open the folder in VS Code and use the `Debug agent (MSVC)` launch
-configuration. It builds the Debug preset before starting the executable.
-
-## Test
+Можно указать другой endpoint:
 
 ```powershell
-ctest --preset windows-msvc-debug
+.\scripts\run.cmd --endpoint http://localhost:8080
+```
+
+Дополнительные команды:
+
+```powershell
+.\scripts\run.cmd --help
+.\scripts\run.cmd --version
+```
+
+Остановка выполняется через `Ctrl+C`.
+
+При корректной остановке оставшиеся неотправленные метрики сохраняются в `backup.json` в текущем рабочем каталоге.
+
+## Формат JSON
+
+Агент отправляет POST-запрос с `Content-Type: application/json`.
+
+Пример:
+
+```json
+{
+  "agent_id": "DESKTOP-NAME",
+  "timestamp": 1792147320,
+  "payload": [
+    {
+      "time": "2026-09-15 13:55:00",
+      "process_name": "chrome.exe",
+      "window_title": "Some page",
+      "user_active": true
+    }
+  ]
+}
+```
+
+Если сервер недоступен или возвращает статус, отличный от `2xx`, данные возвращаются в буфер и будут отправлены позже.
+
+## Тесты
+
+Запуск всех тестов:
+
+```powershell
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+В проекте используются:
+
+- unit-тесты для `MetricBuffer` и `JsonSerializer`;
+- smoke-тесты для `WindowsActivityProvider` и `HttpClient`;
+- интеграционные тесты `Agent`, проверяющие отправку данных, повторную отправку после ошибки и сохранение `backup.json`.
+
+Smoke-тест `WindowsActivityProvider` зависит от активного окна в текущей Windows-сессии, поэтому в некоторых окружениях он может завершиться неуспешно.
+
+Для проверки основной логики без него:
+
+```powershell
+ctest --test-dir build -C Debug -E WindowsActivityProviderSmokeTest --output-on-failure
+```
+
+## Структура проекта
+
+```text
+include/     заголовочные файлы
+src/         реализация агента
+tests/       тесты
+docs/        диаграмма архитектуры
+scripts/     скрипты запуска
+.vscode/     задачи сборки и конфигурация отладки VS Code
 ```
