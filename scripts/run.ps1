@@ -9,13 +9,12 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot '..')
-$Preset = if ($Config -eq 'Release') { 'windows-msvc-release' } else { 'windows-msvc-debug' }
-$BuildDir = if ($Config -eq 'Release') { 'msvc-release' } else { 'msvc-debug' }
+$BuildDir = Join-Path $Root 'build'
 
-cmake --preset $Preset
-cmake --build --preset $Preset
+cmake -S $Root -B $BuildDir
+cmake --build $BuildDir --config $Config
 
-$Executable = Join-Path $Root "build/$BuildDir/bin/$Config/system_monitoring_agent.exe"
+$Executable = Join-Path $BuildDir "$Config/SystemMonitoringAgent.exe"
 if (-not (Test-Path $Executable)) {
     throw "Executable was not found: $Executable"
 }

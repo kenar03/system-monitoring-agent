@@ -29,7 +29,11 @@ namespace monitoring {
         - mChanged: std::condition_variable
         --
         + Push(metric: const Metric&): void
-        + WaitForData(threshold: std::size_t, timeout: std::chrono::seconds): bool
+        + WaitForData(
+            threshold: std::size_t,
+            timeout: std::chrono::seconds,
+            stopRequested: const std::atomic_bool&
+          ): bool
         + TakeBatch(maxCount: std::size_t): std::vector<Metric>
         + RestoreFront(metrics: std::vector<Metric>&&): void
         + GetAll(): std::vector<Metric>
@@ -55,6 +59,9 @@ namespace monitoring {
     }
 
     class Agent {
+        {static} - kCollectionInterval: std::chrono::seconds = 5s
+        {static} - kSendInterval: std::chrono::seconds = 30s
+        {static} - kBatchSize: std::size_t = 10
         - mActivityProvider: WindowsActivityProvider
         - mBuffer: MetricBuffer
         - mJsonSerializer: JsonSerializer
@@ -62,17 +69,20 @@ namespace monitoring {
         - mCollectorThread: std::thread
         - mSenderThread: std::thread
         - mStopRequested: std::atomic_bool
+        - mStopMutex: std::mutex
+        - mStopCondition: std::condition_variable
         - mAgentId: std::string
         - mEndpoint: std::string
         --
+        + Agent(endpoint: std::string)
         + Start(): void
         + RequestStop(): void
         + Stop(): void
         --
         - CollectorLoop(): void
         - SenderLoop(): void
-        - CollectMetric(): Metric
-        - SaveBackup(metrics: const std::vector<Metric>&): void
+        - CollectMetric() const: Metric
+        - SaveBackup(): void
     }
 }
 
@@ -112,6 +122,8 @@ note right of HttpClient
 POST с Content-Type: application/json.
 Таймаут: 5 секунд.
 HTTP 2xx считается успехом.
+Endpoint может содержать путь:
+http://host:8080/metrics
 end note
 
 note right of Agent
@@ -137,7 +149,6 @@ main.cpp:
 - создаёт Agent
 - запускает Agent::Start()
 - обрабатывает Ctrl+C / сигнал остановки
-- вызывает Agent::RequestStop()
 - вызывает Agent::Stop()
 - оставшиеся данные сохраняются в backup.json
 end note

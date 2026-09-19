@@ -15,7 +15,7 @@
         "value": "x64",
         "strategy": "external"
       },
-      "binaryDir": "${sourceDir}/build/msvc-debug",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -31,7 +31,7 @@
         "value": "x64",
         "strategy": "external"
       },
-      "binaryDir": "${sourceDir}/build/msvc-release",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
