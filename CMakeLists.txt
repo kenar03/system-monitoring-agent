@@ -30,6 +30,7 @@ add_library(monitoring_core
     src/WindowsActivityProvider.cpp
     src/MetricBuffer.cpp
     src/HttpClient.cpp
+    src/JsonSerializer.cpp
 )
 
 target_include_directories(monitoring_core
@@ -122,4 +123,25 @@ set_tests_properties(
     HttpClientSmokeTest
     PROPERTIES
         LABELS "smoke"
+)
+
+add_executable(JsonSerializerTests
+    tests/JsonSerializerTests.cpp
+)
+
+target_link_libraries(JsonSerializerTests
+    PRIVATE
+        monitoring_core
+        nlohmann_json::nlohmann_json
+)
+
+add_test(
+    NAME JsonSerializerTests
+    COMMAND JsonSerializerTests
+)
+
+set_tests_properties(
+    JsonSerializerTests
+    PROPERTIES
+        LABELS "unit"
 )
