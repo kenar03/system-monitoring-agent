@@ -31,6 +31,7 @@ add_library(monitoring_core
     src/MetricBuffer.cpp
     src/HttpClient.cpp
     src/JsonSerializer.cpp
+    src/Agent.cpp
 )
 
 target_include_directories(monitoring_core

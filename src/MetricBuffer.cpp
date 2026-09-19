@@ -1,6 +1,6 @@
 #include "MetricBuffer.hpp" // for monitoring::MetricBuffer
 
-#include <mutex>   // for std::lock_guard
+#include <mutex>   // for std::lock_guard, std::unique_lock
 #include <utility> // for std::move
 
 namespace monitoring
@@ -9,7 +9,6 @@ namespace monitoring
     {
         {
             std::lock_guard<std::mutex> lock(mMutex);
-
             mQueue.push_back(metric);
             TrimToCapacity();
         }
@@ -28,14 +27,12 @@ namespace monitoring
     std::size_t MetricBuffer::Size()
     {
         std::lock_guard<std::mutex> lock(mMutex);
-
         return mQueue.size();
     }
 
     std::vector<Metric> MetricBuffer::GetAll()
     {
         std::lock_guard<std::mutex> lock(mMutex);
-
         return std::vector<Metric>(mQueue.begin(), mQueue.end());
     }
 
@@ -76,10 +73,9 @@ namespace monitoring
         mChanged.notify_all();
     }
 
-    bool MetricBuffer::WaitForData(std::size_t threshold, std::chrono::seconds timeout)
+    bool MetricBuffer::WaitForData(std::size_t threshold, std::chrono::seconds timeout, const std::atomic_bool& stopRequested)
     {
         std::unique_lock<std::mutex> lock(mMutex);
-
-        return mChanged.wait_for(lock, timeout, [this, threshold] { return mQueue.size() >= threshold; });
+        return mChanged.wait_for(lock, timeout, [this, threshold, &stopRequested] { return mQueue.size() >= threshold || stopRequested.load(); });
     }
 } // namespace monitoring
