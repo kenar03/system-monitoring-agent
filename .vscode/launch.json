@@ -1,17 +1,16 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Debug agent (MSVC)",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}\\build\\msvc-debug\\bin\\Debug\\system_monitoring_agent.exe",
-      "args": [],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "console": "integratedTerminal",
-      "preLaunchTask": "CMake: build Debug"
-    }
-  ]
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug SystemMonitoringAgent",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/SystemMonitoringAgent.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build"
+        }
+    ]
 }
