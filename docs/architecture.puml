@@ -28,27 +28,36 @@ namespace monitoring {
         - mMutex: std::mutex
         - mChanged: std::condition_variable
         --
-        + Push(metric: Metric): void
+        + Push(metric: const Metric&): void
         + WaitForData(threshold: std::size_t, timeout: std::chrono::seconds): bool
         + TakeBatch(maxCount: std::size_t): std::vector<Metric>
-        + RestoreFront(metrics: std::vector<Metric>): void
+        + RestoreFront(metrics: std::vector<Metric>&&): void
         + GetAll(): std::vector<Metric>
         + NotifyAll(): void
         + Size(): std::size_t
         - TrimToCapacity(): void
     }
 
+    class JsonSerializer {
+        + Serialize(
+            agentId: const std::string&,
+            metrics: const std::vector<Metric>&
+          ) const: std::string
+    }
+
     class HttpClient {
+        {static} - kTimeout: std::chrono::seconds = 5s
+        --
         + PostJson(
-            url: const std::string&,
-            body: const std::string&,
-            timeout: std::chrono::seconds
-          ): bool
+            endpoint: const std::string&,
+            jsonBody: const std::string&
+          ) const: bool
     }
 
     class Agent {
         - mActivityProvider: WindowsActivityProvider
         - mBuffer: MetricBuffer
+        - mJsonSerializer: JsonSerializer
         - mHttpClient: HttpClient
         - mCollectorThread: std::thread
         - mSenderThread: std::thread
@@ -63,16 +72,17 @@ namespace monitoring {
         - CollectorLoop(): void
         - SenderLoop(): void
         - CollectMetric(): Metric
-        - CreateJson(metrics: const std::vector<Metric>&): std::string
         - SaveBackup(metrics: const std::vector<Metric>&): void
     }
 }
 
 Agent *-- WindowsActivityProvider
 Agent *-- MetricBuffer
+Agent *-- JsonSerializer
 Agent *-- HttpClient
 
 MetricBuffer "1" o-- "0..100" Metric
+JsonSerializer ..> Metric : serializes
 
 note right of WindowsActivityProvider
 Работа с Win32 API:
@@ -88,6 +98,22 @@ note right of MetricBuffer
 удаляется самая старая.
 end note
 
+note right of JsonSerializer
+Сериализация данных через nlohmann/json.
+
+Преобразует agent_id и набор Metric
+в готовую JSON-строку для отправки
+или сохранения в backup.json.
+end note
+
+note right of HttpClient
+Сетевое взаимодействие через cpp-httplib.
+
+POST с Content-Type: application/json.
+Таймаут: 5 секунд.
+HTTP 2xx считается успехом.
+end note
+
 note right of Agent
 Два рабочих потока:
 
@@ -99,8 +125,9 @@ CollectorLoop()
 SenderLoop()
 - отправка при 10 записях
   или каждые 30 секунд
-- формирует JSON
-- вызывает HttpClient
+- получает пачку из буфера
+- вызывает JsonSerializer
+- передаёт готовый JSON в HttpClient
 - при ошибке возвращает
   записи в буфер
 end note
